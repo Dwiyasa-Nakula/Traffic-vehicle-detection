@@ -66,4 +66,7 @@ python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/high
 * As YOLO misses a few detections for a few consecutive frames, this issue can be resolved by saving the detections for the last 10 frames and comparing them to the current frame detections when required. The size of the vehicle does not vary too much in 10 frames and has been tested in multiple scenarios; therefore, 10 frames was chosen as an optimal value.
 
 ## Reference
-* https://www.pyimagesearch.com/2018/11/12/yolo-object-detection-with-opencv/ 
+* https://www.pyimagesearch.com/2018/11/12/yolo-object-detection-with-opencv/
+
+Repo:
+* https://github.com/Dwiyasa-Nakula/Traffic-vehicle-detection.git
