@@ -8,7 +8,7 @@ This project aims to count every vehicle (motorcycle, bus, car, cycle, truck, tr
 * The pre-trained yolov4 weight file should be downloaded by following these steps:
 ```
 cd yolo-coco
-wget https://github.com/kiyoshiiriemon/yolov4_darknet?tab=readme-ov-file#pre-trained-models
+https://github.com/kiyoshiiriemon/yolov4_darknet?tab=readme-ov-file#pre-trained-models
 ``` 
 
 ## Dependencies for using CPU for computations
@@ -40,22 +40,21 @@ https://www.pyimagesearch.com/2020/02/03/how-to-use-opencvs-dnn-module-with-nvid
 * `--threshold` or `-t` is an optional argument which requires a float number between 0 to 1 denoting the threshold when applying non-maxima suppression. By default, the threshold is 0.3 (30%).
 * `--use-gpu` or `-u` is an optional argument which requires 0 or 1 denoting the use of GPU. By default, the CPU is used for computations
 ```
-python3 yolo_video.py --input <input video path> --output <output video path> --yolo yolo-coco [--confidence <float number between 0 and 1>] [--threshold <float number between 0 and 1>] [--use-gpu 1]
+python yolo_video.py --input <input video path> --output <output video path> --yolo yolo-coco [--confidence <float number between 0 and 1>] [--threshold <float number between 0 and 1>] [--use-gpu 1]
 ```
 Examples: 
 * Running with defaults
 ```
-python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco 
+python yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco 
 ```
 * Specifying confidence
 ```
-python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --confidence 0.3
+python yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --confidence 0.3
 ```
 * Using GPU
 ```
-python3 yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --use-gpu 1
+python yolo_video.py --input inputVideos/highway.mp4 --output outputVideos/highwayOut.avi --yolo yolo-coco --use-gpu 1
 ```
-
 ## Implementation details
 * The detections are performed on each frame by using YOLOv3 object detection algorithm and displayed on the screen with bounding boxes.
 * The detections are filtered to keep all vehicles like motorcycle, bus, car, cycle, truck, train. The reason why trains are also counted is because sometimes, the longer vehicles like a bus, is detected as a train; therefore, the trains are also taken into account.
