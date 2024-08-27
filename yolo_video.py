@@ -18,13 +18,84 @@ LABELS, weightsPath, configPath, inputVideoPath, outputVideoPath, \
 np.random.seed(42)
 COLORS = np.random.randint(0, 255, size=(len(LABELS), 3), dtype="uint8")
 
+# Define the detection zone (top-left and bottom-right coordinates)
+zone1_top_left = (538, 140)  # Example coordinates
+zone1_bottom_right = (811, 263)  # Example coordinates
+
+# PURPOSE: Check if the center of the bounding box is inside the detection zone
+# PARAMETERS: Bounding box coordinates and detection zone boundaries
+# RETURN: True if inside the zone, otherwise False
+def is_inside_detection_zone(x, y, top_left, bottom_right):
+    if top_left and bottom_right:
+        return top_left[0] <= x <= bottom_right[0] and top_left[1] <= y <= bottom_right[1]
+    return False
+
+# Function to check if the vehicle has already been counted
+def is_vehicle_counted(center, counted_vehicles):
+    for (cx, cy) in counted_vehicles:
+        if abs(center[0] - cx) < 10 and abs(center[1] - cy) < 10:  # Small tolerance to account for slight movements
+            return True
+    return False
+
+# Function to count vehicles only once as they pass through the detection zone
+def count_vehicles_in_zone(idxs, boxes, classIDs, zone_top_left, zone_bottom_right, counted_vehicles):
+    vehicle_count_in_zone = 0
+
+    if len(idxs) > 0:
+        for i in idxs.flatten():
+            (x, y) = (boxes[i][0], boxes[i][1])
+            (w, h) = (boxes[i][2], boxes[i][3])
+            centerX, centerY = x + w // 2, y + h // 2
+
+            if is_inside_detection_zone(centerX, centerY, zone_top_left, zone_bottom_right):
+                if not is_vehicle_counted((centerX, centerY), counted_vehicles):
+                    vehicle_count_in_zone += 1
+                    counted_vehicles.append((centerX, centerY))
+
+    return vehicle_count_in_zone
+
+# Add a new counter for vehicles in the detection zone
+zone1_vehicle_count = 0
+# Global variables to store vehicle centers that have already been counted
+counted_vehicles = []
+
+# Global variables to store the coordinates of the detection zone
+zone_top_left = None
+zone_bottom_right = None
+drawing = False  # Flag to indicate whether we are currently drawing the rectangle
+
+# Mouse callback function to capture the coordinates
+def set_detection_zone(event, x, y, flags, param):
+    global zone_top_left, zone_bottom_right, drawing
+
+    # Record the starting point (top-left) on left mouse button down
+    if event == cv2.EVENT_LBUTTONDOWN:
+        zone_top_left = (x, y)
+        drawing = True
+
+    # Update the ending point (bottom-right) as the mouse moves
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if drawing:
+            zone_bottom_right = (x, y)
+
+    # Finalize the rectangle on left mouse button up
+    elif event == cv2.EVENT_LBUTTONUP:
+        zone_bottom_right = (x, y)
+        drawing = False
+        print(f"Detection zone set: Top-left {zone_top_left}, Bottom-right {zone_bottom_right}")
+
+# Function to draw the detection zone on the frame as it's being set
+def draw_detection_zone(frame):
+    if zone_top_left and zone_bottom_right:
+        cv2.rectangle(frame, zone_top_left, zone_bottom_right, (255, 0, 0), 2)
+
 # PURPOSE: Displays the FPS of the detected video
 # PARAMETERS: Start time of the frame, number of frames within the same second
 # RETURN: New start time, new number of frames 
 def displayFPS(start_time, num_frames):
     current_time = int(time.time())
     if current_time > start_time:
-        os.system('clear')  # Equivalent of CTRL+L on the terminal
+        # os.system('clear')  # Equivalent of CTRL+L on the terminal
         print("FPS:", num_frames)
         num_frames = 0
         start_time = current_time
@@ -70,7 +141,6 @@ def count_vehicles_per_frame(idxs, boxes, classIDs):
                 vehicle_count_dict["Sepeda Motor"] += 1
 
     return vehicle_count_dict
-
 
 # PURPOSE: Display vehicle count per type on the frame
 # PARAMETERS: Frame on which the counts are displayed, the count of each vehicle type
@@ -122,6 +192,10 @@ if not videoStream.isOpened():
 video_width = int(videoStream.get(cv2.CAP_PROP_FRAME_WIDTH))
 video_height = int(videoStream.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+# Set up mouse callback for the window
+cv2.namedWindow("Frame")
+cv2.setMouseCallback("Frame", set_detection_zone)
+
 # Initialization
 num_frames, vehicle_count = 0, 0
 writer = initializeVideoWriter(video_width, video_height, videoStream)
@@ -144,13 +218,19 @@ while True:
     if not grabbed:
         break
 
+    # Draw the detection zone on the frame if defined
+    draw_detection_zone(frame)
+
     # construct a blob from the input frame and then perform a forward pass of the YOLO object detector, giving us our bounding boxes and associated probabilities
     blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (inputWidth, inputHeight),
                                  swapRB=True, crop=False)
     net.setInput(blob)
-    start_detection = time.time()
+    start = time.time()
     layerOutputs = net.forward(ln)
-    end_detection = time.time()
+    end = time.time()
+
+    # Purpose: Display the time taken by the computer to process one frame
+    print("YOLO Execution Time:\t", end - start)
 
     # loop over each of the layer outputs
     for output in layerOutputs:
@@ -191,6 +271,15 @@ while True:
     # Display vehicle counts per type on the frame
     displayVehicleCountPerType(frame, vehicle_count_dict)
 
+    for i in idxs.flatten():
+        # Get the center of the bounding box
+        centerX = boxes[i][0] + (boxes[i][2] // 2)
+        centerY = boxes[i][1] + (boxes[i][3] // 2)
+        
+    # Count vehicles only once as they pass through the detection zone
+    new_vehicles_in_zone = count_vehicles_in_zone(idxs, boxes, classIDs, zone1_top_left, zone1_bottom_right, counted_vehicles)
+    zone1_vehicle_count += new_vehicles_in_zone
+
     # display total detected vehicles in the current frame
     total_vehicles = sum(vehicle_count_dict.values())
     cv2.putText(
@@ -203,6 +292,21 @@ while True:
         2,
         cv2.LINE_AA,
     )
+
+        # Display the zone vehicle count on the frame
+    cv2.putText(
+        frame,
+        f'Zone Vehicles: {zone1_vehicle_count}',
+        (20, 50),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (0, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
+
+    # Optionally, draw the detection zone on the frame
+    cv2.rectangle(frame, zone1_top_left, zone1_bottom_right, (255, 0, 0), 2)
 
     # write the output frame to disk
     writer.write(frame)
